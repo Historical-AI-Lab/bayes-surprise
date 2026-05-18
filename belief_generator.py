@@ -238,7 +238,8 @@ def _elicit_beliefs(
     raw_candidates: list[str] = []
     prompt = context + "\n\n" + question_template.format(anchor=anchor)
     for _ in range(n_calls):
-        result = generate_answer(prompt, model_id, max_new_tokens=max_new_tokens)
+        result = generate_answer(prompt, model_id, max_new_tokens=max_new_tokens,
+                                 temperature=1.0, top_p=0.95)
         items  = _parse_numbered_list(result["text"], per_call)
         for item in items:
             raw_candidates.append(_strip_anchor(item, anchor))
@@ -445,7 +446,8 @@ def run_phase_generate(
         next_cands: list[str] = []
         for _ in range(2):
             result = generate_answer(
-                context + "\n\n" + q_next, model_id, max_new_tokens=256
+                context + "\n\n" + q_next, model_id, max_new_tokens=256,
+                temperature=1.0, top_p=0.95,
             )
             items = _parse_numbered_list(result["text"], 5)
             next_cands.extend(items)
