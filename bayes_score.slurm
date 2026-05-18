@@ -15,28 +15,21 @@
 # ===========================================================================
 # Phase 2: score + MMR (base model)
 #
-# Starts a vLLM server serving Mixtral-8x7B (base), then runs
-# belief_generator.py --phase score, then shuts the server down.
+# vLLM runs inside an Apptainer container to work around Delta's glibc 2.28.
+# Prefix caching is especially important here: the long prompt is shared
+# across all 20 scoring calls per latent per step.
 #
 # Requires work/<BOOK>_candidates.json written by bayes_generate.slurm.
-#
-# Submit from the repo root after generation is complete:
-#   sbatch bayes_score.slurm
-#
-# Or chain it automatically:
-#   sbatch --dependency=afterok:<generate_jobid> bayes_score.slurm
-#
-# Prefix caching is critical here: scoring 20 continuations per latent
-# per step reuses the same long prompt, so the KV cache is shared across
-# almost all scoring calls at each step.
+# Chain automatically: sbatch --dependency=afterok:<generate_jobid> bayes_score.slurm
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Configuration — edit these lines before submitting
+# Configuration — edit before submitting
 # ---------------------------------------------------------------------------
-BOOK="ShesNotSorryMaryKubica"          # must match the generate job
+BOOK="ShesNotSorryMaryKubica"
 BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
-LAMBDA="0.5"                           # MMR diversity/relevance tradeoff
+LAMBDA="0.5"
+SIF_IMAGE="/work/nvme/bdfx/vllm_openai.sif"
 # ---------------------------------------------------------------------------
 
 echo "Job starting on $(hostname)"
@@ -51,32 +44,38 @@ source "$BAYES_ENV"
 export HF_HOME=/work/nvme/bdfx/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
+unset CC CXX FC CFLAGS CXXFLAGS LDFLAGS
+
 cd "$SLURM_SUBMIT_DIR"
 
 MODEL_BASE="mistralai/Mixtral-8x7B-v0.1"
 VLLM_PORT=8000
 
-# --- start vLLM server (base model, 4-way tensor parallelism) --------------
-# Mixtral-8x7B base is ~93 GB in bfloat16; 4 × A100 40 GB = 160 GB.
-# Prefix caching (--enable-prefix-caching) is especially important here:
-# the long prompt is shared across all 20 scoring calls per latent per step.
+# --- start vLLM server via Apptainer (base model, 4-way TP) ----------------
 echo "Starting vLLM server for ${MODEL_BASE} ..."
-vllm serve "$MODEL_BASE" \
-    --tensor-parallel-size 4 \
-    --gpu-memory-utilization 0.90 \
-    --dtype bfloat16 \
-    --enable-prefix-caching \
-    --host 127.0.0.1 \
-    --port "$VLLM_PORT" \
+apptainer exec --nv \
+    --bind "${HF_HOME}:${HF_HOME}" \
+    --bind /tmp:/tmp \
+    --bind /dev/shm:/dev/shm \
+    "$SIF_IMAGE" \
+    python3 -m vllm.entrypoints.openai.api_server \
+        --model "$MODEL_BASE" \
+        --tensor-parallel-size 4 \
+        --gpu-memory-utilization 0.90 \
+        --dtype bfloat16 \
+        --enable-prefix-caching \
+        --host 127.0.0.1 \
+        --port "$VLLM_PORT" \
     > vllm-score-${SLURM_JOB_ID}.log 2>&1 &
 VLLM_PID=$!
 
-# --- wait for server to be healthy (up to 10 minutes) ----------------------
-MAX_WAIT=600
+# --- wait for server to be healthy (up to 15 minutes) ----------------------
+MAX_WAIT=900
 WAITED=0
 until curl -sf "http://127.0.0.1:${VLLM_PORT}/health" > /dev/null 2>&1; do
     if [ $WAITED -ge $MAX_WAIT ]; then
         echo "ERROR: vLLM server did not start within ${MAX_WAIT}s; aborting."
+        echo "Check vllm-score-${SLURM_JOB_ID}.log for details."
         kill "$VLLM_PID" 2>/dev/null
         exit 1
     fi

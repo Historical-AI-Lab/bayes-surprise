@@ -15,28 +15,30 @@
 # ===========================================================================
 # Phase 1: generate candidates (instruct model)
 #
-# Starts a vLLM server serving Mixtral-8x7B-Instruct, then runs
-# belief_generator.py --phase generate, then shuts the server down.
+# vLLM runs inside an Apptainer container to work around Delta's glibc 2.28.
+# The Python client (belief_generator.py) runs in bayes-env as normal.
+#
+# Prerequisites in BAYES_ENV (NOT vllm — that lives in the container):
+#   pip install openai transformers sentence-transformers numpy
+#
+# Both Mixtral models and sentence-transformers/all-MiniLM-L6-v2 must be
+# pre-downloaded into /work/nvme/bdfx/.cache/huggingface.
 #
 # Submit from the repo root:
 #   sbatch bayes_generate.slurm
-#
-# To chain scoring immediately after:
+# Chain scoring after:
 #   sbatch --dependency=afterok:<this_jobid> bayes_score.slurm
-#
-# Prerequisites — in BAYES_ENV you need:
-#   pip install vllm openai transformers sentence-transformers numpy
-# Both Mixtral models and all-MiniLM-L6-v2 must be pre-downloaded into
-#   /work/nvme/bdfx/.cache/huggingface
-# (sentence_transformers uses HF_HOME since version 3+; if you are on an
-#  older version, also set SENTENCE_TRANSFORMERS_HOME accordingly)
 # ===========================================================================
 
 # ---------------------------------------------------------------------------
-# Configuration — edit these two lines before submitting
+# Configuration — edit before submitting
 # ---------------------------------------------------------------------------
-BOOK="ShesNotSorryMaryKubica"          # stem of chunkedtexts/<BOOK>.json
+BOOK="ShesNotSorryMaryKubica"
 BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
+# Apptainer image built from docker://vllm/vllm-openai:latest
+# Use Ziliang's existing image or build your own:
+#   apptainer build vllm_openai.sif docker://vllm/vllm-openai:latest
+SIF_IMAGE="/work/nvme/bdfx/vllm_openai.sif"
 # ---------------------------------------------------------------------------
 
 echo "Job starting on $(hostname)"
@@ -51,31 +53,40 @@ source "$BAYES_ENV"
 export HF_HOME=/work/nvme/bdfx/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
+# Clear host compiler flags that can conflict inside the container.
+unset CC CXX FC CFLAGS CXXFLAGS LDFLAGS
+
 cd "$SLURM_SUBMIT_DIR"
 
 MODEL_IT="mistralai/Mixtral-8x7B-Instruct-v0.1"
 VLLM_PORT=8000
 
-# --- start vLLM server (instruct model, 4-way tensor parallelism) ----------
+# --- start vLLM server via Apptainer (instruct model, 4-way TP) ------------
 # Mixtral-8x7B-Instruct is ~93 GB in bfloat16; 4 × A100 40 GB = 160 GB.
-# gpu-memory-utilization 0.90 leaves ~16 GB free for KV cache per GPU.
 echo "Starting vLLM server for ${MODEL_IT} ..."
-vllm serve "$MODEL_IT" \
-    --tensor-parallel-size 4 \
-    --gpu-memory-utilization 0.90 \
-    --dtype bfloat16 \
-    --enable-prefix-caching \
-    --host 127.0.0.1 \
-    --port "$VLLM_PORT" \
+apptainer exec --nv \
+    --bind "${HF_HOME}:${HF_HOME}" \
+    --bind /tmp:/tmp \
+    --bind /dev/shm:/dev/shm \
+    "$SIF_IMAGE" \
+    python3 -m vllm.entrypoints.openai.api_server \
+        --model "$MODEL_IT" \
+        --tensor-parallel-size 4 \
+        --gpu-memory-utilization 0.90 \
+        --dtype bfloat16 \
+        --enable-prefix-caching \
+        --host 127.0.0.1 \
+        --port "$VLLM_PORT" \
     > vllm-generate-${SLURM_JOB_ID}.log 2>&1 &
 VLLM_PID=$!
 
-# --- wait for server to be healthy (up to 10 minutes) ----------------------
-MAX_WAIT=600
+# --- wait for server to be healthy (up to 15 minutes) ----------------------
+MAX_WAIT=900
 WAITED=0
 until curl -sf "http://127.0.0.1:${VLLM_PORT}/health" > /dev/null 2>&1; do
     if [ $WAITED -ge $MAX_WAIT ]; then
         echo "ERROR: vLLM server did not start within ${MAX_WAIT}s; aborting."
+        echo "Check vllm-generate-${SLURM_JOB_ID}.log for details."
         kill "$VLLM_PID" 2>/dev/null
         exit 1
     fi
