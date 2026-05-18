@@ -1,0 +1,8 @@
+{"premise": "The novel is set in contemporary Chicago and is narrated primarily in the first person by Meghan Michaels.",
+"Meghan Michaels": {"aliases": ["Meghan", "Meghan Michaels", "Ms. Michaels"], "range": [0, 100]},
+"Sienna Long": {"aliases": ["Sienna", "Sienna Long"], "range": [0, 100]},
+"Ben Long": {"aliases": ["Ben", "Ben Long"], "range": [0, 100]},
+"Caitlin Beckett": {"aliases": ["Caitlin", "Caitlin Beckett", "Ms. Beckett"], "range": [0, 100]},
+"Natalie Cohen": {"aliases": ["Nat", "Natalie", "Nat Cohen", "Natalie Cohen"], "range": [0, 100]},
+"Luke Albrecht": {"aliases": ["Luke", "Luke Albrecht", "Mr. Albrecht"], "range": [0, 100]}
+}
