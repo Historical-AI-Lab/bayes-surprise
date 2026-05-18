@@ -26,7 +26,7 @@
 
 BOOK="ShesNotSorryMaryKubica"
 BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
-SIF_IMAGE="/work/nvme/bdfx/vllm_openai.sif"
+SIF_IMAGE="/work/hdd/bdfx/zqiu1/models/vllm-openai_latest.sif"
 MAX_STEPS=10
 
 echo "Job starting on $(hostname)"
@@ -66,6 +66,7 @@ start_vllm() {
             --tensor-parallel-size 1 \
             --gpu-memory-utilization 0.90 \
             --dtype bfloat16 \
+            --enforce-eager \
             --enable-prefix-caching \
             --host 127.0.0.1 \
             --port "$VLLM_PORT" \
