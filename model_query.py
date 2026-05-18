@@ -40,6 +40,8 @@ MODELS = {
     "mixtral-base":  "mistralai/Mixtral-8x7B-v0.1",
     "gemma-it":      "google/gemma-4-31B-it",
     "gemma-base":    "google/gemma-4-31B",
+    "qwen-it":       "Qwen/Qwen2.5-7B-Instruct",
+    "qwen-base":     "Qwen/Qwen2.5-7B",
 }
 
 

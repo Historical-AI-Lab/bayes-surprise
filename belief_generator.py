@@ -33,6 +33,10 @@ Usage
     python3 belief_generator.py chunkedtexts/ShesNotSorryMaryKubica.json \\
             --dry-run [--step T]
 
+    # Log every context prompt to work/<Book>_contexts.json during generation:
+    python3 belief_generator.py chunkedtexts/ShesNotSorryMaryKubica.json \\
+            --phase generate --log-contexts
+
 Characters (optional)
 ---------------------
 If characters/<Book>_characters.json exists, characters are included in
@@ -321,10 +325,17 @@ def run_phase_generate(
     max_steps: int | None = None,
     dry_run: bool = False,
     start_step: int = 0,
+    log_contexts: bool = False,
 ) -> None:
     """Step through chunks, eliciting candidate beliefs and summaries.
 
     Writes/updates work_path after each step (resumable).
+
+    If log_contexts is True, also writes work/<Book>_contexts.json — a list of
+    {"step": T, "context": str} dicts, one per step processed in this run.
+    Useful for manual inspection of what the model was shown at each step.
+    Note: only steps processed in the current run are captured; skipped
+    (already-done) steps from a resumed run are not re-logged.
 
     Intermediate format per step (list of step dicts):
     {
@@ -357,11 +368,17 @@ def run_phase_generate(
 
     n_steps = min(len(chunks), max_steps) if max_steps else len(chunks)
 
+    contexts_log: list[dict] = []  # populated only when log_contexts=True
+    contexts_path = work_path.parent / (work_path.stem.replace("_candidates", "_contexts") + ".json")
+
     for T in range(start_step, n_steps):
         if T in steps_done:
             continue
 
         context = build_context(chunks, summaries, characters, premise, T)
+
+        if log_contexts:
+            contexts_log.append({"step": T, "context": context})
 
         if dry_run:
             print(f"\n{'='*70}\nStep {T} context prompt:\n{'='*70}")
@@ -459,10 +476,16 @@ def run_phase_generate(
         with open(work_path, "w") as f:
             json.dump(ordered, f, ensure_ascii=False, indent=1)
 
+        if log_contexts:
+            with open(contexts_path, "w") as f:
+                json.dump(contexts_log, f, ensure_ascii=False, indent=1)
+
         print("done")
 
     if not dry_run:
         print(f"Generation complete.  Candidates written to {work_path}")
+        if log_contexts:
+            print(f"Context log written to {contexts_path}")
 
 
 def _first_char_desc(summaries: list[dict], name: str) -> str | None:
@@ -522,7 +545,7 @@ def run_phase_score(
         conflict_cands    = step.get("conflict_candidates", [])
         conflict_emb      = np.array(step.get("conflict_embeddings", []),
                                      dtype=np.float32)
-        conflict_beliefs, conflict_logits = _score_and_select(
+        conflict_beliefs, conflict_logits, conflict_logits_all = _score_and_select(
             conflict_scoring_prompt,
             conflict_cands,
             conflict_emb,
@@ -536,7 +559,7 @@ def run_phase_score(
         mystery_cands     = step.get("mystery_candidates", [])
         mystery_emb       = np.array(step.get("mystery_embeddings", []),
                                      dtype=np.float32)
-        mystery_beliefs, mystery_logits = _score_and_select(
+        mystery_beliefs, mystery_logits, mystery_logits_all = _score_and_select(
             mystery_scoring_prompt,
             mystery_cands,
             mystery_emb,
@@ -550,7 +573,7 @@ def run_phase_score(
         next_cands    = step.get("next_candidates", [])
         next_emb      = np.array(step.get("next_embeddings", []),
                                   dtype=np.float32)
-        next_beliefs, next_logits = _score_and_select(
+        next_beliefs, next_logits, next_logits_all = _score_and_select(
             next_scoring_prompt,
             next_cands,
             next_emb,
@@ -559,23 +582,28 @@ def run_phase_score(
             lambda_=lambda_,
         )
 
+        # Write all scored logits back into the candidates dict so that
+        # inspect_generation.py can re-run MMR at any lambda offline.
+        step["conflict_logits_all"] = conflict_logits_all
+        step["mystery_logits_all"]  = mystery_logits_all
+        step["next_logits_all"]     = next_logits_all
+
         # --- what-happens-next improbability (needs summary_{t+1}) ---
         p_next_summary = None
         if idx + 1 < len(candidates_data):
-            summary_t1    = candidates_data[idx + 1]["summary"]
+            summary_t1  = candidates_data[idx + 1]["summary"]
             # Score summary_{t+1} as a continuation after "What happens next:"
-            next_all      = next_beliefs + [" " + summary_t1]
-            scoring_res   = score_continuations(
+            scoring_res = score_continuations(
                 next_scoring_prompt,
                 [" " + b for b in next_beliefs] + [" " + summary_t1],
                 model_id,
             )
-            all_logits    = [r["logprob"] for r in scoring_res]
+            softmax_logits = [r["logprob"] for r in scoring_res]
             import math
-            max_lp        = max(all_logits)
-            exps          = [math.exp(lp - max_lp) for lp in all_logits]
-            s             = sum(exps)
-            probs         = [e / s for e in exps]
+            max_lp         = max(softmax_logits)
+            exps           = [math.exp(lp - max_lp) for lp in softmax_logits]
+            s              = sum(exps)
+            probs          = [e / s for e in exps]
             p_next_summary = probs[-1]   # probability of the actual summary
 
         # --- assemble Belief object ---
@@ -620,8 +648,15 @@ def run_phase_score(
     with open(summaries_path, "w") as f:
         json.dump(summaries_out, f, ensure_ascii=False, indent=1)
 
+    # Write the full scored logits back to the candidates file so that
+    # inspect_generation.py can re-run MMR at any lambda without re-scoring.
+    # (Each step dict was mutated in-place above; we now persist that update.)
+    with open(work_path, "w") as f:
+        json.dump(candidates_data, f, ensure_ascii=False, indent=1)
+
     print(f"Beliefs written to   {beliefs_path}")
     print(f"Summaries written to {summaries_path}")
+    print(f"Scored logits added to {work_path}")
 
 
 def _score_and_select(
@@ -631,14 +666,19 @@ def _score_and_select(
     model_id: str,
     k: int,
     lambda_: float,
-) -> tuple[list[str], list[float]]:
-    """Score candidates, run MMR, return (selected_texts, selected_logits).
+) -> tuple[list[str], list[float], list[float]]:
+    """Score candidates, run MMR, return (selected_texts, selected_logits, all_logits).
+
+    all_logits is the full scored log-probability for every candidate (same
+    order as candidates), not just the MMR-selected k.  It is saved back to
+    the candidates file by run_phase_score so that inspect_generation.py can
+    re-run MMR offline at any lambda value without re-querying the model.
 
     Continuations stored in Phase 1 already have the anchor stripped and
     begin with a leading space, so the scorer sees them correctly.
     """
     if not candidates:
-        return [], []
+        return [], [], []
 
     # Prefix each candidate with a space (boundary policy: caller supplies
     # the exact leading whitespace to be scored).
@@ -655,7 +695,7 @@ def _score_and_select(
 
     selected_texts  = [candidates[i] for i in selected_idx]
     selected_logits = [logits[i]     for i in selected_idx]
-    return selected_texts, selected_logits
+    return selected_texts, selected_logits, logits
 
 
 # ---------------------------------------------------------------------------
@@ -730,7 +770,8 @@ if __name__ == "__main__":
         sys.exit(
             "usage: python3 belief_generator.py <chunkedtexts/Book.json> "
             "--phase generate|score [--model-family mixtral|gemma] "
-            "[--max-steps N] [--lambda 0.5] [--step T] [--dry-run]"
+            "[--max-steps N] [--lambda 0.5] [--step T] [--dry-run] "
+            "[--log-contexts]"
         )
 
     chunks_path   = Path(args[0]).expanduser()
@@ -741,6 +782,7 @@ if __name__ == "__main__":
     lambda_       = float(_opt("--lambda", "0.5"))
     step_str      = _opt("--step", "0")
     dry_run       = _flag("--dry-run")
+    log_contexts  = _flag("--log-contexts")
 
     if not chunks_path.exists():
         sys.exit(f"Input file not found: {chunks_path}")
@@ -775,10 +817,14 @@ if __name__ == "__main__":
         sys.exit(0)
 
     it_model = (
-        MODELS["gemma-it"]    if model_family == "gemma" else MODELS["mixtral-it"]
+        MODELS["gemma-it"]   if model_family == "gemma"
+        else MODELS["qwen-it"]   if model_family == "qwen"
+        else MODELS["mixtral-it"]
     )
     base_model = (
-        MODELS["gemma-base"]  if model_family == "gemma" else MODELS["mixtral-base"]
+        MODELS["gemma-base"]  if model_family == "gemma"
+        else MODELS["qwen-base"]  if model_family == "qwen"
+        else MODELS["mixtral-base"]
     )
 
     run_meta = _make_run_metadata(model_family, phase, lambda_)
@@ -790,6 +836,7 @@ if __name__ == "__main__":
             chunks, characters, premise, it_model, work_path,
             max_steps=max_steps,
             start_step=0,
+            log_contexts=log_contexts,
         )
 
     elif phase == "score":
