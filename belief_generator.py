@@ -414,7 +414,8 @@ def run_phase_generate(
         q_conflict = (
             "What is the central conflict in this story?\n"
             "Provide five distinct answers, each a short sentence on a "
-            "numbered new line, beginning with the same phrase:\n\n"
+            "numbered new line. Each answer MUST begin with exactly these "
+            "words (copy them verbatim):\n\n"
             "1. {anchor}"
         )
         conflict_cands = _elicit_beliefs(
@@ -427,7 +428,8 @@ def run_phase_generate(
         q_mystery = (
             "What does the reader expect to discover by the end of this story?\n"
             "Provide five distinct answers, each a short sentence on a "
-            "numbered new line, beginning with the same phrase:\n\n"
+            "numbered new line. Each answer MUST begin with exactly these "
+            "words (copy them verbatim):\n\n"
             "1. {anchor}"
         )
         mystery_cands = _elicit_beliefs(
@@ -439,8 +441,10 @@ def run_phase_generate(
         # --- what-happens-next candidates ---
         q_next = (
             'Predict what happens next in the form of a short present-tense '
-            'sentence. E.g. "Red Riding Hood arrives at her grandmother\'s '
-            'house." Provide five distinct predictions, each numbered and on '
+            'sentence written in the third person (use character names or '
+            'he/she/they — never "I" or "we"). '
+            'E.g. "Red Riding Hood arrives at her grandmother\'s house." '
+            'Provide five distinct predictions, each numbered and on '
             'a new line.\n\n1.'
         )
         next_cands: list[str] = []
