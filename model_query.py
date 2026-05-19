@@ -356,12 +356,17 @@ def _score_vllm(
             entry = raw_lp[pos] if raw_lp and pos < len(raw_lp) else None
             if entry is None:
                 continue
-            # entry is a dict {token_id: logprob_value, ...}; pick top token.
-            tok_id  = full_ids[pos]
-            lp_val  = entry.get(tok_id)
-            if lp_val is None:
-                # Fall back to the highest-probability token in the dict.
-                lp_val = max(entry.values())
+            # entry is a dict {token_id: Logprob} where Logprob is either a
+            # bare float (older vLLM) or {"logprob": float, ...} (newer vLLM).
+            # Keys may be int or str depending on SDK/vLLM version.
+            tok_id = full_ids[pos]
+            lp_obj = entry.get(tok_id) or entry.get(str(tok_id))
+            if lp_obj is None:
+                lp_obj = max(
+                    entry.values(),
+                    key=lambda v: v["logprob"] if isinstance(v, dict) else float(v),
+                )
+            lp_val = lp_obj["logprob"] if isinstance(lp_obj, dict) else float(lp_obj)
             logprob_sum += lp_val
             if return_token_details:
                 tok_str = tokenizer.decode([tok_id])
