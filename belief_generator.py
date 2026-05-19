@@ -84,7 +84,7 @@ CONTEXT_SUMMARIES = 7
 # Anchor phrases for conflict and mystery beliefs (the text that
 # precedes the scorable continuation).
 CONFLICT_ANCHOR = "In this story, the central conflict is"
-MYSTERY_ANCHOR  = "By the end of this story, the reader will discover"
+MYSTERY_ANCHOR  = "By the end of this story, the reader will"
 
 # Numbered-line regex: matches "1." / "1)" at the start (after stripping).
 _NUMBERED_RE = re.compile(r"^\s*\d+[.)]\s*")
