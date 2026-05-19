@@ -36,6 +36,7 @@
 # ---------------------------------------------------------------------------
 BOOK="ShesNotSorryMaryKubica"          # must match the generate job
 BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
+SIF_IMAGE="/work/hdd/bdfx/zqiu1/models/vllm-openai_latest.sif"
 LAMBDA="0.5"                           # MMR diversity/relevance tradeoff
 # ---------------------------------------------------------------------------
 
@@ -51,6 +52,8 @@ source "$BAYES_ENV"
 export HF_HOME=/work/nvme/bdfx/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
+unset CC CXX FC CFLAGS CXXFLAGS LDFLAGS
+
 cd "$SLURM_SUBMIT_DIR"
 
 MODEL_BASE="mistralai/Mixtral-8x7B-v0.1"
@@ -61,13 +64,20 @@ VLLM_PORT=8000
 # Prefix caching (--enable-prefix-caching) is especially important here:
 # the long prompt is shared across all 20 scoring calls per latent per step.
 echo "Starting vLLM server for ${MODEL_BASE} ..."
-vllm serve "$MODEL_BASE" \
-    --tensor-parallel-size 4 \
-    --gpu-memory-utilization 0.90 \
-    --dtype bfloat16 \
-    --enable-prefix-caching \
-    --host 127.0.0.1 \
-    --port "$VLLM_PORT" \
+apptainer exec --nv \
+    --bind "${HF_HOME}:${HF_HOME}" \
+    --bind /tmp:/tmp \
+    --bind /dev/shm:/dev/shm \
+    "$SIF_IMAGE" \
+    python3 -m vllm.entrypoints.openai.api_server \
+        --model "$MODEL_BASE" \
+        --tensor-parallel-size 4 \
+        --gpu-memory-utilization 0.90 \
+        --dtype bfloat16 \
+        --enforce-eager \
+        --enable-prefix-caching \
+        --host 127.0.0.1 \
+        --port "$VLLM_PORT" \
     > vllm-score-${SLURM_JOB_ID}.log 2>&1 &
 VLLM_PID=$!
 
@@ -93,8 +103,7 @@ python -u belief_generator.py \
     "chunkedtexts/${BOOK}.json" \
     --phase score \
     --model-family mixtral \
-    --lambda "$LAMBDA"
-    --log-contexts
+    --lambda "$LAMBDA" \
     --max-steps 10
 
 EXIT_CODE=$?

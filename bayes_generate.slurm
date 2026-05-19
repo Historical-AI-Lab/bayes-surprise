@@ -38,7 +38,7 @@ BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
 # Apptainer image built from docker://vllm/vllm-openai:latest
 # Use Ziliang's existing image or build your own:
 #   apptainer build vllm_openai.sif docker://vllm/vllm-openai:latest
-SIF_IMAGE="/work/nvme/bdfx/vllm_openai.sif"
+SIF_IMAGE="/work/hdd/bdfx/zqiu1/models/vllm-openai_latest.sif"
 # ---------------------------------------------------------------------------
 
 echo "Job starting on $(hostname)"
@@ -74,6 +74,7 @@ apptainer exec --nv \
         --tensor-parallel-size 4 \
         --gpu-memory-utilization 0.90 \
         --dtype bfloat16 \
+        --enforce-eager \
         --enable-prefix-caching \
         --host 127.0.0.1 \
         --port "$VLLM_PORT" \

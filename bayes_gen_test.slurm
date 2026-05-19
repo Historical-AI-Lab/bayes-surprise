@@ -37,6 +37,7 @@
 # ---------------------------------------------------------------------------
 BOOK="ShesNotSorryMaryKubica"          # stem of chunkedtexts/<BOOK>.json
 BAYES_ENV="$SLURM_SUBMIT_DIR/bayes-env/bin/activate"
+SIF_IMAGE="/work/hdd/bdfx/zqiu1/models/vllm-openai_latest.sif"
 # ---------------------------------------------------------------------------
 
 echo "Job starting on $(hostname)"
@@ -51,6 +52,8 @@ source "$BAYES_ENV"
 export HF_HOME=/work/nvme/bdfx/.cache/huggingface
 export HF_HUB_OFFLINE=1
 
+unset CC CXX FC CFLAGS CXXFLAGS LDFLAGS
+
 cd "$SLURM_SUBMIT_DIR"
 
 MODEL_IT="mistralai/Mixtral-8x7B-Instruct-v0.1"
@@ -60,13 +63,20 @@ VLLM_PORT=8000
 # Mixtral-8x7B-Instruct is ~93 GB in bfloat16; 4 × A100 40 GB = 160 GB.
 # gpu-memory-utilization 0.90 leaves ~16 GB free for KV cache per GPU.
 echo "Starting vLLM server for ${MODEL_IT} ..."
-vllm serve "$MODEL_IT" \
-    --tensor-parallel-size 4 \
-    --gpu-memory-utilization 0.90 \
-    --dtype bfloat16 \
-    --enable-prefix-caching \
-    --host 127.0.0.1 \
-    --port "$VLLM_PORT" \
+apptainer exec --nv \
+    --bind "${HF_HOME}:${HF_HOME}" \
+    --bind /tmp:/tmp \
+    --bind /dev/shm:/dev/shm \
+    "$SIF_IMAGE" \
+    python3 -m vllm.entrypoints.openai.api_server \
+        --model "$MODEL_IT" \
+        --tensor-parallel-size 4 \
+        --gpu-memory-utilization 0.90 \
+        --dtype bfloat16 \
+        --enforce-eager \
+        --enable-prefix-caching \
+        --host 127.0.0.1 \
+        --port "$VLLM_PORT" \
     > vllm-generate-${SLURM_JOB_ID}.log 2>&1 &
 VLLM_PID=$!
 
@@ -91,8 +101,8 @@ export BAYES_VLLM_BASE_URL="http://127.0.0.1:${VLLM_PORT}/v1"
 python -u belief_generator.py \
     "chunkedtexts/${BOOK}.json" \
     --phase generate \
-    --model-family mixtral
-    --log-contexts
+    --model-family mixtral \
+    --log-contexts \
     --max-steps 10
 
 EXIT_CODE=$?
