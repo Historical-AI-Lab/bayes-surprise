@@ -334,7 +334,7 @@ def _score_vllm(
         response = client.completions.create(
             model=model_id,
             prompt=full_text,
-            max_tokens=0,
+            max_tokens=1,
             temperature=0,
             extra_body={
                 "prompt_logprobs": 1,
