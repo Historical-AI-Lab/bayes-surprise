@@ -26,7 +26,7 @@ def embed(texts: list[str]) -> np.ndarray:
     global _st_model
     if _st_model is None:
         from sentence_transformers import SentenceTransformer
-        _st_model = SentenceTransformer(_EMBED_MODEL_NAME)
+        _st_model = SentenceTransformer(_EMBED_MODEL_NAME, device="cpu")
     vecs = _st_model.encode(texts, normalize_embeddings=True,
                              show_progress_bar=False)
     return np.array(vecs, dtype=np.float32)
