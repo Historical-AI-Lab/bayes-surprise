@@ -306,7 +306,9 @@ def _score_vllm(
     from transformers import AutoTokenizer
 
     client   = _get_client()
+    print(f"    loading tokenizer {model_id} ...", flush=True)
     tokenizer = AutoTokenizer.from_pretrained(model_id)
+    print(f"    tokenizer ready", flush=True)
 
     # Tokenise the prompt once to find its boundary.
     # add_special_tokens=True matches vLLM's default (BOS prepended).

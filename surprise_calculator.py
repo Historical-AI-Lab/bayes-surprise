@@ -225,9 +225,11 @@ def compute_surprise_for_step(
     # ------------------------------------------------------------------ #
     # Embedding novelty (CPU, no model server needed)                     #
     # ------------------------------------------------------------------ #
+    print(f"    embed ...", flush=True)
     if T not in chunk_embeddings:
         chunk_embeddings[T] = embed([chunks[T]["text"]])  # shape (1, D)
     e_T = chunk_embeddings[T][0]  # (D,)
+    print(f"    embed done", flush=True)
 
     prior_indices = [t for t in range(max(0, T - 3), T) if t >= 0]
     if prior_indices:
@@ -258,7 +260,9 @@ def compute_surprise_for_step(
             next_summary = summaries_steps[T + 1]["summary"]
             ctx = build_context(chunks, summaries_steps, characters, premise, T)
             next_prompt = ctx + "\n\nWhat happens next:"
+            print(f"    baseline_b vllm call ...", flush=True)
             lp = _avg_logprobs(next_prompt, [next_summary], model_id, backend)
+            print(f"    baseline_b done", flush=True)
             record["improb_naive_logprob"] = lp[0]
         else:
             record["improb_naive_logprob"] = None
