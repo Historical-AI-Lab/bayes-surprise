@@ -44,7 +44,7 @@
     "Thomasina Cray",
     "Donatella Disogno"
   ], "range": [0, 39]},
-"Reggie / Nellie Doyle": {"aliases" :[
+"Reggie/Nellie Doyle": {"aliases" :[
     "Reggie",
     "Regina Reynolds",
     "Miss Reynolds",
@@ -55,5 +55,5 @@
     "Miss LeMarq",
     "Thomasina Cray",
     "Donatella Disogno"
-  ], "range": [40, 99]}
+  ], "range": [39, 99]}
 }
