@@ -1,0 +1,10 @@
+{
+"premise": "In a world where many people can no longer afford to start families, contestants compete on a reality TV show where they raise a Virtual Child to adulthood. The prize: the right to keep their virtual child, or risk it all for the chance of a real baby.",
+"Rufus Green": {"aliases": ["Rufus", "Rufus Green"], "range": [0, 125]},
+"Tina Finn": {"aliases": ["Tina", "Tina Finn", "Christina"], "range": [0, 125]},
+"Issy Finn": {"aliases": ["Issy"], "range": [0, 125]},
+"Gabriel Macmillan": {"aliases": ["Gabriel", "Gabriel Macmillan"], "range": [0, 125]},
+"Zoe Taylor-Georgiou": {"aliases": ["Zoe", "Zoe Taylor-Georgiou"], "range": [0, 125]},
+"Hudson Wright": {"aliases": ["Hudson", "Hudson Wright", "Leo", "Leo Hamilton", "Mark Smith"], "range": [0, 125]},
+"Jaden Wilson": {"aliases": ["Jaden", "Jaden Wilson", "Mr Wilson"], "range": [0, 125]}
+}
