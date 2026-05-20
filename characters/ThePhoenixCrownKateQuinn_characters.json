@@ -1,0 +1,59 @@
+{ "premise": "In bustling San Francisco, 1906, two very different women hope to change their fortunes.",
+  "Suling Feng": {"aliases" :[
+    "Suling",
+    "Suling Feng",
+    "Feng Suling",
+    "Miss Feng",
+    "Young Miss"
+  ], "range": [0, 99]},
+  "Gemma Garland": {"aliases" :[
+    "Gemma",
+    "Gemma Garland",
+    "Miss Garland",
+    "Sally Gunderson",
+    "Sally",
+    "Sal",
+    "farm girl",
+    "Zerlina",
+    "Gemma Serrano"
+  ], "range": [0, 99]},
+  "Alice Eastwood": {"aliases" :[
+    "Alice",
+    "Alice Eastwood",
+    "Miss Eastwood"
+  ], "range": [0, 99]},
+  "Henry Thornton": {"aliases" :[
+    "Thornton",
+    "Henry",
+    "Henry Thornton",
+    "Mr. Thornton",
+    "William van Doren",
+    "van Doren"
+  ], "range": [0, 99]},
+  "Reggie": {"aliases" :[
+    "Reggie",
+    "Regina Reynolds",
+    "Miss Reynolds"
+  ], "range": [0, 39]},
+  "Nellie Doyle": {"aliases" :[
+    "Nellie",
+    "Nell",
+    "Nellie Doyle",
+    "Danielle LeMarq",
+    "Miss LeMarq",
+    "Thomasina Cray",
+    "Donatella Disogno"
+  ], "range": [0, 39]},
+"Reggie / Nellie Doyle": {"aliases" :[
+    "Reggie",
+    "Regina Reynolds",
+    "Miss Reynolds",
+    "Nellie",
+    "Nell",
+    "Nellie Doyle",
+    "Danielle LeMarq",
+    "Miss LeMarq",
+    "Thomasina Cray",
+    "Donatella Disogno"
+  ], "range": [40, 99]}
+}
