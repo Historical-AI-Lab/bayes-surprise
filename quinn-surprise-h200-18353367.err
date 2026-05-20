@@ -1,0 +1,41 @@
+Running "module reset". Resetting modules to system default. The following $MODULEPATH directories have been removed: /sw/rh9.4/spack/default/modules/lmod/linux-rhel9-x86_64/Core
+
+Currently Loaded Modules:
+  1) gcc-native/13.2      6) cray-libsci/25.03.0    11) cue-login-env/1.1
+  2) craype/2.7.34        7) PrgEnv-gnu/8.6.0       12) slurm-env/0.1
+  3) libfabric/1.22.0     8) cray-dsmml/0.3.1       13) default
+  4) craype-network-ofi   9) craype-x86-milan       14) cudatoolkit/25.3_12.8
+  5) cray-mpich/8.1.32   10) craype-accel-nvidia80
+
+ 
+
+Starting vLLM server for mistralai/Mixtral-8x7B-v0.1 ...
+  waiting for vLLM ... (0s)
+  waiting for vLLM ... (10s)
+  waiting for vLLM ... (20s)
+  waiting for vLLM ... (30s)
+  waiting for vLLM ... (40s)
+  waiting for vLLM ... (50s)
+  waiting for vLLM ... (60s)
+  waiting for vLLM ... (70s)
+  waiting for vLLM ... (80s)
+  waiting for vLLM ... (90s)
+  waiting for vLLM ... (100s)
+  waiting for vLLM ... (110s)
+  waiting for vLLM ... (120s)
+  waiting for vLLM ... (130s)
+  waiting for vLLM ... (140s)
+  waiting for vLLM ... (150s)
+  waiting for vLLM ... (160s)
+  waiting for vLLM ... (170s)
+  waiting for vLLM ... (180s)
+  waiting for vLLM ... (190s)
+  waiting for vLLM ... (200s)
+  waiting for vLLM ... (210s)
+  waiting for vLLM ... (220s)
+  waiting for vLLM ... (230s)
+  waiting for vLLM ... (240s)
+  waiting for vLLM ... (250s)
+  waiting for vLLM ... (260s)
+  waiting for vLLM ... (270s)
+vLLM ready after 280s.
