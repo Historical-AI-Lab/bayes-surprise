@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --partition=gpuA40x4
 #SBATCH --account=bdfx-delta-gpu
-#SBATCH --time=48:00:00
+#SBATCH --time=7:00:00
 #SBATCH --job-name=bayes-full-a40
 #SBATCH --error=bayes-full-a40-%j.err
 #SBATCH --output=bayes-full-a40-%j.out
