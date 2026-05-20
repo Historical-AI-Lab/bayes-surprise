@@ -42,6 +42,7 @@ source "$BAYES_ENV"
 
 export HF_HOME=/work/nvme/bdfx/.cache/huggingface
 export HF_HUB_OFFLINE=1
+export SENTENCE_TRANSFORMERS_HOME=${HF_HOME}/hub
 export VLLM_CACHE_ROOT=/tmp/vllm-cache-${SLURM_JOB_ID}
 
 unset CC CXX FC CFLAGS CXXFLAGS LDFLAGS
@@ -76,8 +77,8 @@ start_vllm() {
     local pid=$!
     local waited=0
     until curl -sf "http://127.0.0.1:${VLLM_PORT}/health" > /dev/null 2>&1; do
-        if [ $waited -ge 300 ]; then
-            echo "ERROR: vLLM did not start within 300s. Check ${logfile}." >&2
+        if [ $waited -ge 900 ]; then
+            echo "ERROR: vLLM did not start within 900s. Check ${logfile}." >&2
             kill "$pid" 2>/dev/null
             exit 1
         fi
