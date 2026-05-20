@@ -95,7 +95,7 @@ start_vllm() {
 # ---------------------------------------------------------------------------
 VLLM_PID=$(start_vllm "mistralai/Mixtral-8x7B-v0.1" "vllm-surprise-h200-${SLURM_JOB_ID}.log")
 
-python -u surprise_calculator.py "${BOOK}" \
+CUDA_VISIBLE_DEVICES="" python -u surprise_calculator.py "${BOOK}" \
     --model-family mixtral \
     --baseline-b
 
